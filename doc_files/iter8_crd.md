@@ -9,7 +9,7 @@ kind: Experiment
 
 Below we document iter8's Experiment CRD. For clarity, we break the documentation down into the CRD's 3 sections: `spec`, `metrics`, and `status`.
 
-## `Experiment spec`
+## `Experiment.spec`
 
 Following the Kubernetes model, the `spec` section specifies the details of the object and its desired state. The `spec` of an `Experiment` custom resource identifies the target service of a candidate release or A/B test, the baseline deployment corresponding to the stable service version, the candidate deployments corresponding to the service versions being assessed, etc. In the YAML representation below, we show sample values for the `spec` attributes and comments describing their meaning and whether or not they are optional.
 
@@ -17,15 +17,15 @@ At a high level, the `spec` contains the following sections, each of which is de
 
 ```yaml
 spec:
-    service: # [required] details of the service to be tested including the baseline and candidate versions
-    routingReference: # [optional] reference to an existing istio VirtualService that should be used for the service
-    criteria: # [optional] list of assessment criteria used to determine value of candidate version(s)
-    duration: # [optional] defines the amount of time an experiment will take to complete
-    trafficControl: # [optional] specifies how traffic will be managed during the experiment
-    cleanup: # [optional] specifies whether or not some versions of the service will be deleted at the end of the experiment
-    analyticsServiceURL: # [optional] the URL of the analytics service
-    manualOverride: # [optional] identifies manual actions that can be taken to override automated behavior
-    metrics: # [optional] List of metrics definitions
+  service: # [required] details of the service to be tested including the baseline and candidate versions
+  routingReference: # [optional] reference to an existing istio VirtualService that should be used for the service
+  criteria: # [optional] list of assessment criteria used to determine value of candidate version(s)
+  duration: # [optional] defines the amount of time an experiment will take to complete
+  trafficControl: # [optional] specifies how traffic will be managed during the experiment
+  cleanup: # [optional] specifies whether or not some versions of the service will be deleted at the end of the experiment
+  analyticsServiceURL: # [optional] the URL of the analytics service
+  manualOverride: # [optional] identifies manual actions that can be taken to override automated behavior
+  metrics: # [optional] List of metrics definitions
 ```
 
 ### `spec.service`
@@ -65,8 +65,8 @@ The `duration` options specify how long an experiment will run. The total run ti
 
 ```yaml
 duration:
-    interval: 30s # [optional] length of each iteration. Specified using standard go time specification. Default value is 30s.
-    maxIterations: 100 # [optional] the maximum number of iterations an experiment lasts. Default is 100.
+  interval: 30s # [optional] length of each iteration. Specified using standard go time specification. Default value is 30s.
+  maxIterations: 100 # [optional] the maximum number of iterations an experiment lasts. Default is 100.
 ```
 
 ### `spec.trafficControl`
@@ -75,10 +75,10 @@ The `trafficControl` options allow for greater control the distribution of traff
 
 ```yaml
 trafficControl: # [optional]
-    percentage: 80 # [optional] Specifies the total amount of traffic that should be used for experimental purposes. The remaining traffic will all be directed at the baseline version. Def
-    maxIncrement: 2 # [optional] A maximum percentage by which the traffic distribution can change in a given iteration of the experiment. Default is 2.
-    strategy: progressive # [optional] Choice of algorithm to be used to determine recommended traffic split. Value options are "progressive" (default), "top_2", and "uniform". For details see: URL
-    onTermination: to_winner # [optional] Indicates how traffic should be distributed between versions when the experiment ends (whether successfully or not). Valid values are "to_winner", "to_baseline" and "keep_last". The efault is "to_winner". The specification here can be overridden if terminated manually, see manualOverrides.trafficSplit.
+  percentage: 80 # [optional] Specifies the total amount of traffic that should be used for experimental purposes. The remaining traffic will all be directed at the baseline version. Def
+  maxIncrement: 2 # [optional] A maximum percentage by which the traffic distribution can change in a given iteration of the experiment. Default is 2.
+  strategy: progressive # [optional] Choice of algorithm to be used to determine recommended traffic split. Value options are "progressive" (default), "top_2", and "uniform". For details see: URL
+  onTermination: to_winner # [optional] Indicates how traffic should be distributed between versions when the experiment ends (whether successfully or not). Valid values are "to_winner", "to_baseline" and "keep_last". The efault is "to_winner". The specification here can be overridden if terminated manually, see manualOverrides.trafficSplit.
 ```
 
 ### `spec.cleanup`
@@ -97,32 +97,54 @@ While an experiment is executing, the `Experiment` can be patched to add a `manu
 
 ```yaml
 manualOverride: # [optional]
-    action: terminate # [required] Identifies what action should be taken. Valid values are "pause", "resume", and "terminate".
+  action: terminate # [required] Identifies what action should be taken. Valid values are "pause", "resume", and "terminate".
 
-    trafficSplit: # [optional] specifies how traffic should be distributed between the service versions.Applies only when the action is terminate. Specified as integer values, they must add to 100.
-        reviews-v2: 10
-        reviews-v3: 90
+  trafficSplit: # [optional] specifies how traffic should be distributed between the service versions.Applies only when the action is terminate. Specified as integer values, they must add to 100.
+    reviews-v2: 10
+    reviews-v3: 90
 ```
 
 ### `spec.metrics`
 
-Information about all Prometheus metrics known to iter8 are stored in a Kubernetes `ConfigMap` named _`iter8_metrics`_. When iter8 is installed, that `ConfigMap` is populated with information on the 3 metrics that iter8 supports out of the box, namely: `iter8_latency`, `iter8_error_rate`, and `iter8_error_count`. Users can add their own custom metrics.
+Information about all Prometheus metrics known to iter8 are stored in a Kubernetes `ConfigMap` named _`iter8config-metrics`_. When iter8 is installed, that `ConfigMap` is populated with information on the metrics that iter8 supports out of the box. Users can add their own custom metrics by patching _`iter8config-metrics`_.
 
-When an `Experiment` custom resource is created, the iter8 controller will check the metric names referenced by `.spec.analysis.successCriteria`, look them up in the `ConfigMap`, retrieve the information about them from the `ConfigMap`, and store that information in the `metrics` section of the newly created `Experiment` object. The information about a metric allows the iter8 analytics service to query Prometheus to retrieve metric values for the baseline version and candidate versions of the service . Below we show an example of how a metric is stored in an `Experiment` object.
+When an `Experiment` resource is created, the iter8 controller will copy the metrics definitions from the `ConfigMap` to the `spec.metrics` section of the newly created `Experiment` object. 
+
+The metrics definitions define how to query Prometheus to retrieve metric values and how to interpret them. There are two types: _counter_ and _ratio_ metrics. Counter metric definitions include the Prometheus query that should be used to retrieve values. Ratio metric definitions do so indirectly by identifying the counter metrics that should be used as numberator and denominator.
+The optional fields `preferred_direction` identifies if a metric is increasing or decreasing. Finally, the optional ratio metric field `zero_to_one` identifies that all values should be between 0 and 1. 
+
+Below we show the default metrics as they would appear in the `Experiment` resource.
 
 ```yaml
 metrics:
-  iter8_latency:
-    absent_value: None
-    is_counter: false
-    query_template: (sum(increase(istio_request_duration_seconds_sum{source_workload_namespace!='knative-serving',reporter='source'}[$interval]$offset_str))
-      by ($entity_labels)) / (sum(increase(istio_request_duration_seconds_count{source_workload_namespace!='knative-serving',reporter='source'}[$interval]$offset_str))
-      by ($entity_labels))
-    sample_size_template: sum(increase(istio_requests_total{source_workload_namespace!='knative-serving',reporter='source'}[$interval]$offset_str))
-      by ($entity_labels)
+  counter_metrics: # [optional]
+    - name: iter8_request_count
+      query_template: sum(increase(istio_requests_total{reporter='source'}[$interval])) by ($version_labels)
+    - name: iter8_total_latency
+      query_template: sum(increase(istio_request_duration_milliseconds_sum{reporter='source'}[$interval])) by ($version_labels)
+    - name: iter8_error_count
+      query_template: sum(increase(istio_requests_total{response_code=~'5..',reporter='source'}[$interval])) by ($version_labels)
+      preferred_direction: lower
+    - name: conversion_count
+      query_template: sum(increase(newsletter_signups[$interval])) by ($version_labels)
+  ratio_metrics: # [optional] the value of a ratio metric equals value of numerator divided by denominator
+      - name: iter8_mean_latency
+        numerator: iter8_total_latency
+        denominator: iter8_request_count
+        preferred_direction: lower
+      - name: iter8_error_rate
+        numerator: iter8_error_count
+        denominator: iter8_request_count
+        preferred_direction: lower
+        unit_range: true
+      - name: conversion_rate
+        numerator: conversion_count
+        denominator: iter8_request_count
+        preferred_direction: higher
+        zero_to_one: true
 ```
 
-## `Experiment status`
+## `Experiment.status`
 
 Following the Kubernetes model, the `status` section contains all relevant runtime details pertaining to the `Experiment` custom resource. In the YAML representation below, we show sample values for the `status` attributes and comments describing their meaning.
 
