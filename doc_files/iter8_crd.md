@@ -3,7 +3,7 @@
 When iter8 is installed, a new Kubernetes CRD is added to your cluster. Our CRD kind and current API version are as follows:
 
 ```yaml
-apiVersion: iter8.tools/v1alpha1
+apiVersion: iter8.tools/v1alpha2
 kind: Experiment
 ```
 
@@ -11,36 +11,102 @@ Below we document iter8's Experiment CRD. For clarity, we break the documentatio
 
 ## `Experiment spec`
 
-Following the Kubernetes model, the `spec` section specifies the details of the object and its desired state. The `spec` of an `Experiment` custom resource identifies the target service of a candidate release or A/B test, the baseline deployment corresponding to the stable service version, the candidate deployment corresponding to the service version being assessed, etc. In the YAML representation below, we show sample values for the `spec` attributes and comments describing their meaning and whether or not they are optional.
+Following the Kubernetes model, the `spec` section specifies the details of the object and its desired state. The `spec` of an `Experiment` custom resource identifies the target service of a candidate release or A/B test, the baseline deployment corresponding to the stable service version, the candidate deployments corresponding to the service versions being assessed, etc. In the YAML representation below, we show sample values for the `spec` attributes and comments describing their meaning and whether or not they are optional.
+
+At a high level, the `spec` contains the following sections, each of which is described in more detail below.
+
+```yaml
+spec:
+    service: # [required] details of the service to be tested including the baseline and candidate versions
+    routingReference: # [optional] reference to an existing istio VirtualService that should be used for the service
+    criteria: # [optional] list of assessment criteria used to determine value of candidate version(s)
+    duration: # [optional] defines the amount of time an experiment will take to complete
+    trafficControl: # [optional] specifies how traffic will be managed during the experiment
+    cleanup: # [optional] specifies whether or not some versions of the service will be deleted at the end of the experiment
+    analyticsServiceURL: # [optional] the URL of the analytics service
+    manualOverride: # [optional] identifies manual actions that can be taken to override automated behavior
+```
+
+### `spec.service`
+
+The `service` identifies the service to which the experiment applies. Further, it identifies the baseline version and one or more candidate versions. For a canary experiment, only 1 candidate should be specified. A/B tests can specify any number of candidates. It is assumed that all versions are executing in the same namespace of the same cluster.
+
+### `spec.routingReference`
+
+A `routingReference` is a kubernetes `OwnerReference` to an existing Istio `VirtualService` already defined for the Kubernetes `Service`. iter8 will reuse the `VirtualService` instead of creating a new one.
+
+### `spec.criteria`
+
+A list of criteria can be specified that should be used to assess the relative quality of the candidates with respect to each other and to the baseline. Each criterion references a _metric_ and specifies either what absolute values are acceptable or how different the value may be from the baseline version. If any one critieron is violated by a version, that version will be deemed unsuitable. If the flag `cutoffTrafficOnViolation` is set, action to block traffic to the failing version will be taken immediately.
+One criterion can be identified as a _reward_. Rewards are used in A/B testing to evalutate the most valuable (desired) version.
+
+Some example criteria are shown here:
+
+```yaml
+criteria:
+  - metric: iter8_mean_latency
+      threshold: # (optional section)
+        type: relative # can be relative or absolute
+        value: 1.1 # float
+    - metric: iter8_error_rate
+    - metric: iter8_error_count
+      threshold:
+        type: absolute
+        value: 10
+        cutoffTrafficOnViolation: true # if the threshold is violated, the candidate violating the threshold will not get any traffic (optional; default = false)
+    - metric: conversion_rate
+        isReward: true # this is a reward metric. Only ratio metrics can be reward metrics. There can be at most one reward metric (optional; default = false)
+```
+
+### `spec.duration`
+
+The `duration` options specify how long an experiment will run. The total run time is the product of the time per iteration and the number of iterations.
+
+```yaml
+duration:
+    interval: 30s # [optional] length of each iteration. Specified using standard go time specification. Default value is 30s.
+    maxIterations: 100 # [optional] the maximum number of iterations an experiment lasts. Default is 100.
+```
+
+### `spec.trafficControl`
+
+The `trafficControl` options allow for greater control the distribution of traffic between versions of the service under test. These are documented in the example below. For further details about the traffic control choices, see URL. 
+
+```yaml
+trafficControl: # [optional]
+    percentage: 80 # [optional] Specifies the total amount of traffic that should be used for experimental purposes. The remaining traffic will all be directed at the baseline version. Def
+    maxIncrement: 2 # [optional] A maximum percentage by which the traffic distribution can change in a given iteration of the experiment. Default is 2.
+    strategy: progressive # [optional] Choice of algorithm to be used to determine recommended traffic split. Value options are "progressive" (default), "top_2", and "uniform". For details see: URL
+    onTermination: to_winner # [optional] Indicates how traffic should be distributed between versions when the experiment ends (whether successfully or not). Valid values are "to_winner", "to_baseline" and "keep_last". The efault is "to_winner". The specification here can be overridden if terminated manually, see manualOverrides.trafficSplit.
+```
+
+### `spec.cleanup`
+
+When set to `true`, `cleanup` indicates that when the experiment ends (whether successful or not), any versions of the service not receiving traffic should be deleted. `cleanup` defaults to `false`.
+
+```yaml
+cleanup: true # [optional] default is false
+```
+
+### `spec.analyticsServiceURL`
+
+### `spec.manualOverride`
+
+While an experiment is executing, the `Experiment` can be patched to add a `manualOverride`. Manual actions are taken immediately and have precedence over the rest of the experiment specification. They only affect on experiments that are progressing; they have no effect on experiments that are completed. A running experiment can be _paused_, a paused experiment can be _resumed_, and any experiment can be _terminated_. When pausing, no change is made the traffic split between versions. While paused, no updates to the assessment criteria are made. When terminating an experiment, one may optionally specify a final traffic distribution between the versions of the service. Specified in integer quantities, it should sum to 100%.
+
+```yaml
+manualOverride: # [optional]
+    action: terminate # [required] Identifies what action should be taken. Valid values are "pause", "resume", and "terminate".
+
+    trafficSplit: # [optional] specifies how traffic should be distributed between the service versions.Applies only when the action is terminate. Specified as integer values, they must add to 100.
+        reviews-v2: 10
+        reviews-v3: 90
+```
+
 
 ```yaml
 spec:
     # targetService specifies the reference to experiment targets
-    targetService:
-
-      # apiVersion of the target service (required) 
-      # options:
-      #   v1: indicates that the target service is a Kubernetes service 
-      #   serving.knative.dev/v1alpha1: indicates that the target service is a Knative service
-      apiVersion: v1
-
-      # name of target service (required) 
-      # identifies either a Kubernetes service or a Knative service
-      name: reviews
-
-      # the baseline and candidate versions of the target service (required)
-      # for Kubernetes, these two components refer to names of deployments
-      # for Knative, they are names of revisions
-      baseline: reviews-v3
-      candidate: reviews-v5
-
-    # routingReference is a reference to an existing Istio VirtualService (optional)
-    # this should be used only if an Istio VirtualService has already been defined for the target Kubernetes service
-    routingReference:
-      apiversion: networking.istio.io/v1alpha3
-      kind: VirtualService
-      name: reviews-external
-
     # analysis contains the parameters for configuring the analytics service
     analysis:
 
