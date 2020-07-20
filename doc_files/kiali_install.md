@@ -8,6 +8,7 @@ Kiali is an observability console for Istio with service mesh configuration capa
 
 Kiali version 1.18.1 (and above) now provides the capabilities to observe Iter8 experiment runtime behavior. To enable Kiali Iter8 extensions, user needs to update the Kiali CR. The Iter8 extension is not enabled by default, to enable Iter8 extensions, the Kiali Operator needs to be installed. To check if Kiali operator is installed, use `kubectl get pods -n kiali-operator`. To install Kiali Operator, please follow the steps in [Advanced Install](https://kiali.io/documentation/latest/installation-guide/#_advanced_install_operator_only). And make sure the Kiali CR is created by using command `kubectl get kialis.kiali.io kiali -n kiali-operator`.
 
+During the Installation, if this is the new installation, you will be asked to choose authentication strategies (login, anonymous, ldap, openshift, token and openid). Depending on the chosen strategy, the installation may prompt for additional information. Please reference [Kiali Login Option](https://kiali.io/documentation/latest/installation-guide/#_login_options) for authentication strategies.
 
 #### B. Enable iter_8 in Kiali Operator CR
 
