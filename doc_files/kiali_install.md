@@ -6,19 +6,12 @@ Kiali is an observability console for Istio with service mesh configuration capa
 
 #### A. Install Kiali Operator
 
-Kiali version 1.18.1 (and above) now provides the capabilities to observe Iter8 experiment runtime behavior. To enable Kiali Iter8 extensions, user needs to update the Kiali CR. The Iter8 extension is not enabled by default, to enable Iter8 extensions, the Kiali Operator needs to be installed. To check if Kiali operator is installed, use `kubectl get pods -n kiali-operator` Please follow the steps in [Advanced Install](https://kiali.io/documentation/getting-started/#_advanced_install_operator_only) to install kiali operator. And make sure the Kiali CR is created by command `kubectl get kialis.kiali.io kiali -n kiali-operator`.
+Kiali version 1.18.1 (and above) now provides the capabilities to observe Iter8 experiment runtime behavior. To enable Kiali Iter8 extensions, user needs to update the Kiali CR. The Iter8 extension is not enabled by default, to enable Iter8 extensions, the Kiali Operator needs to be installed. To check if Kiali operator is installed, use `kubectl get pods -n kiali-operator`. To install Kiali Operator, please follow the steps in [Advanced Install](https://kiali.io/documentation/latest/installation-guide/#_advanced_install_operator_only). And make sure the Kiali CR is created by using command `kubectl get kialis.kiali.io kiali -n kiali-operator`.
 
-For example: 
-
-```   
-bash <(curl -L https://kiali.io/getLatestKialiOperator) --accessible-namespaces '**' -oiv latest -kiv latest --operator-install-kiali true
-``` 
-
-will install the latest operator and Kiali from stable master.
 
 #### B. Enable iter_8 in Kiali Operator CR
 
-1. Follow the step [Create or Edit the Kiali CR](https://kiali.io/documentation/getting-started/#_create_or_edit_the_kiali_cr) or use ``kubectl edit kialis.kiali.io kiali -n kiali-operator`
+1. Follow the step [Create or Edit the Kiali CR](https://kiali.io/documentation/latest/installation-guide/#_create_or_edit_the_kiali_cr) or use ``kubectl edit kialis.kiali.io kiali -n kiali-operator`
 
 2. Enable `iter_8` extensions under Spec.
 
@@ -52,7 +45,7 @@ will install the latest operator and Kiali from stable master.
     ```
     bash <(curl -L https://kiali.io/getLatestKialiOperator) --accessible-namespaces '**' -oiv latest -kiv latest --operator-install-kiali true
     ```
-2. If Iter8 did not show up in Kiali, check the configmap using this command `kubectl edit configmap kiali -n istio-system`. And make the iter_8 has `enabled: true`. In order for the configmap to take effect, please delete the kiali pod in namespace istio-system.  Kiali operator will restart the kiali pod automatically. 
+2. If Iter8 did not show up in Kiali, check the configmap using this command `kubectl edit configmap kiali -n istio-system`. And make the iter_8 has `enabled: true`. In order for the configmap to take effect, please delete the kiali pod in namespace istio-system.  Kiali operator will restart the kiali pod automatically.
 
 3. Error message `Kiali has Iter8 extension enabled but it is not detected in the cluster`
 
@@ -71,7 +64,7 @@ will install the latest operator and Kiali from stable master.
 
 2. Experiment create page
 
-   User can create new experiment from the Action pulldown on the right of the listing page. 
+   User can create new experiment from the Action pulldown on the right of the listing page.
 
    <img src=../img/kiali-experiment-create-1.png width=95%>
    <img src=../img/kiali-experiment-create-2.png width=95%>
