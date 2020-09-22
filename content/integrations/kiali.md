@@ -10,7 +10,7 @@ Kiali is an observability console for Istio with service mesh configuration capa
 
 ## Enabling the iter8 Console in Kiali
 
-Currently the iter8 extension for Kiali works only for [iter8 v0.2.1](https://www.iter8.tools), not the current version. To install this version of iter8, see [here](https://iter8.tools/getting-started/installation/kubernetes/).
+Currently the iter8 extension for Kiali (v1.24) works only for [iter8 v1.0.0-rc2](https://iter8.tools/) and above. To install on either Kubernetes or OpenShip, please see [here](https://iter8.tools/installation/).
 
 ### Install Kiali Using Operator
 
@@ -22,13 +22,17 @@ To check if Kiali operator is installed, use:
 kubectl --namespace kiali-operator get pods
 ```
 
-To install the Kiali operator, follow the steps in [Install Kiali]( https://kiali.io/documentation/latest/installation-guide/#_install_kiali_latest). You can verify that the Kiali CR is created by using command:
+To install the Kiali operator, follow the steps in [Install Kiali Latest]( https://kiali.io/documentation/latest/installation-guide/#_install_kiali_latest). You can verify that the Kiali CR is created by using command:
 
 ```bash
 kubectl  --namespace kiali-operator get kialis.kiali.io kiali
 ```
 
-If this is the new installation, you will be asked to choose an authentication strategy (login, anonymous, ldap, openshift, token or openid). Depending on the chosen strategy, the installation process may prompt for additional information. Please see [Kiali Login Options](https://kiali.io/documentation/latest/installation-guide/#_login_options) for details about authentication strategies.
+If this is the new installation, you might be asked to choose an authentication strategy (login, anonymous, ldap, openshift, token or openid). Depending on the chosen strategy, the installation process may prompt for additional information. Please see [Kiali Login Options](https://kiali.io/documentation/latest/installation-guide/#_login_options) for details about authentication strategies. Currently, the default authentication strategy is `token`. You can use the following kubectl command to retrieve the token for serviceaccount  `kiali-service-account`.
+
+```bash
+kubectl get secret -n istio-system $(kubectl get sa kiali-service-account -n istio-system -o jsonpath='{.secrets[0].name}') -o jsonpath={.data.token} | base64 -d
+```
 
 ### Enable iter8 in the Kiali Operator CR
 
@@ -55,7 +59,9 @@ extensions:
   iter_8:
     enabled: true
 ```
+A [sample Kiali CR]() with Iter8 enabled for your reference.
 
+Changing the Kialis.kiali.io CR will trigger Kiali to re-configured. You can also force the kiali pod to restart.
 Restart the Kiali pods:
 
 ```bash
@@ -68,7 +74,7 @@ You can check if the pod has successfully restarted by inspecting the pods:
 kubectl --namespace istio-system get pods
 ```
 
-Install iter8 v0.2.1. See [install instructions](https://github.com/iter8-tools/docs/blob/v0.2.1/doc_files/iter8_install.md)
+Install iter8 v1.0.0-rc2. See [install instructions](https://iter8.tools/installation/)
 
 Start Kiali using:
 
@@ -82,7 +88,7 @@ istioctl dashboard kiali
 
 {{< figure src="/images/kiali-iter8-listing.png" title="iter8 main page" caption="iter8 main page lists all the experiments in available namespace(s).">}}
 
-### Create Experiment
+### Create Experiment (Form Style)
 
 You can create new experiment from the Action pulldown on the right of the listing page.
 
@@ -90,9 +96,22 @@ You can create new experiment from the Action pulldown on the right of the listi
 
 {{< figure src="/images/kiali-experiment-create-2.png" title="Experiment creation -- additional configuration options">}}
 
+{{< figure src="/images/kiali-experiment-create-2.png" title="Experiment creation -- Duration, Traffic and Networking options">}}
+
+### Create Experiment from File
+
+You can create experiment from exiting local file, import for Github or manual enter the YAML in the yaml editor.
+{{< figure src="/images/kiali-experiment-create-from-file.png" title="Experiment creation from file">}}
+
 ### Experiment Detail
 
-{{< figure src="/images/kiali-experiment-detail.png" title="Experiment detail page" caption="Click on the name of the experiment from the listing page will show the experiment detail page. In the detail page, user can `pause`, `resume`, `terminate with success` and `terminate with failure` from the action pulldown. User can also `delete` experiment.">}}
+{{< figure src="/images/kiali-experiment-detail.png" title="Experiment detail page" caption="Click on the name of the experiment from the listing page will show the experiment detail page. In the detail page, user can `pause`, `resume`, `terminate with traffic split` from the action pulldown. User can also `delete` experiment.">}}
+
+{{< figure src="/images/kiali-experiment-detail-assessment.png" title="Experiment assessment page" caption="Click on the assessment tab will show the experiment assessment information.">}}
+
+### Short Video about Kiali and Iter8 Integration
+
+ {{< youtube bGEJLPHUZiQ>}}
 
 ## Troubleshooting Guide
 
