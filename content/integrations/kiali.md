@@ -10,7 +10,7 @@ Kiali is an observability console for Istio with service mesh configuration capa
 
 ## Enabling the iter8 Console in Kiali
 
-Currently the iter8 extension for Kiali (v1.24) works only for [iter8 v1.0.0-rc2](https://iter8.tools/) and above. To install on either Kubernetes or OpenShip, please see [here](https://iter8.tools/installation/).
+Currently the iter8 extension for Kiali (v1.24) works only for [iter8 v1.0.0-rc3](https://iter8.tools/) and above. To install on either Kubernetes or OpenShip, please see [here](https://iter8.tools/installation/).
 
 ### Install Kiali Using Operator
 
@@ -25,7 +25,7 @@ kubectl --namespace kiali-operator get pods
 To install the Kiali operator, follow the steps in [Install Kiali Latest]( https://kiali.io/documentation/latest/installation-guide/#_install_kiali_latest). You can verify that the Kiali CR is created by using command:
 
 ```bash
-kubectl  --namespace kiali-operator get kialis.kiali.io kiali
+kubectl  --namespace istio-system get kialis.kiali.io kiali
 ```
 
 If this is the new installation, you might be asked to choose an authentication strategy (login, anonymous, ldap, openshift, token or openid). Depending on the chosen strategy, the installation process may prompt for additional information. Please see [Kiali Login Options](https://kiali.io/documentation/latest/installation-guide/#_login_options) for details about authentication strategies. Currently, the default authentication strategy is `token`. You can use the following kubectl command to retrieve the token for serviceaccount  `kiali-service-account`.
@@ -39,7 +39,7 @@ kubectl get secret -n istio-system $(kubectl get sa kiali-service-account -n ist
 Follow the step [Create or Edit the Kiali CR](https://kiali.io/documentation/latest/installation-guide/#_create_or_edit_the_kiali_cr) or use:
 
 ```bash
-kubectl --namespace kiali-operator edit kialis.kiali.io kiali
+kubectl --namespace istio-system edit kialis.kiali.io kiali
 ```
 
 Find the `iter_8` key under `spec.extensions` and set `enabled` to `true`. The relevant portion of the CR is:
@@ -59,7 +59,6 @@ extensions:
   iter_8:
     enabled: true
 ```
-A [sample Kiali CR]() with Iter8 enabled for your reference.
 
 Changing the Kialis.kiali.io CR will trigger Kiali to re-configured. You can also force the kiali pod to restart.
 Restart the Kiali pods:
@@ -148,6 +147,8 @@ Make sure iter8 is installed, check that both iter80-controller and iter8-analyt
 ```bash
 kubectl --namespace iter8 get pods
 ```
+
+if you started kiali before you installed iter8, please restart kiali in namespace istio-system to re-detect iter8 installation
 
 ---
 
